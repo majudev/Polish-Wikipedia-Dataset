@@ -1,5 +1,6 @@
-from threading import Thread
-import json
+import multiprocessing
+from multiprocessing import Process, Queue, Value
+import time
 import re
 from html2text import html2text
 import wikitextparser as wtp
@@ -53,21 +54,28 @@ def analyze_chunk(text):
         print(oops)
         return None
 
-
-def save_to_disk(article, savedir):
+def save_to_disk(article, savedir, dumpedArticles, skippedArticles):
     if savedir[-1] != '/':
         savedir += '/'
 
     # Convert XML to Text
     doc = analyze_chunk(article)
     if doc:
-        print('SAVING:', doc['title'])
+#        print('SAVING:', doc['title'])
         filename = doc['id'] + '.txt'
         # Save to disk
         with open(savedir + filename, 'w', encoding='utf-8') as outfile:
             outfile.write(doc['body'])
             outfile.close()
+        dumpedArticles.value += 1
+    else:
+        skippedArticles.value += 1
 
+def run_worker_thread(queue, dumpedArticles, skippedArticles):
+    while True:
+        while not queue.empty():
+            object = queue.get()
+            save_to_disk(object["article"], object["savedir"], dumpedArticles, skippedArticles)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parse Wikipedia dump\'s XML to human-readable txt files')
@@ -77,7 +85,36 @@ if __name__ == '__main__':
 
     print('Reading from ', args.source, ' and writing to ', args.output_dir)
 
+    # Find number of articles
+    start_time = time.time()
+    totalArticles = 0
+    with open(args.source, 'r', encoding='utf-8') as infile:
+        # Read line by line
+        for line in infile:
+            # Extract <page> attributes
+            if '</page>' in line:
+                # We got article
+                totalArticles += 1
+        infile.close()
+    end_time = time.time()
+    print('Found', totalArticles, 'articles, which took', end_time-start_time, 'seconds')
+
+    # Now analyze the texts
+    start_time = time.time()
+    last_dump_time = time.time()
+    dumpedArticles = Value('i', 0)
+    skippedArticles = Value('i', 0)
+    processes = []
+    queues = []
+    print('Spawning', multiprocessing.cpu_count(), 'worker threads')
+    for i in range(multiprocessing.cpu_count()):
+        queue = Queue()
+        queues.append(queue)
+        p = Process(target=run_worker_thread, args=(queue, dumpedArticles, skippedArticles))
+        p.start()
+        processes.append(p)
     article = ''
+    queue_n = 0
     with open(args.source, 'r', encoding='utf-8') as infile:
         # Read line by line
         for line in infile:
@@ -86,6 +123,31 @@ if __name__ == '__main__':
                 article = ''
             elif '</page>' in line:
                 # We got whole <page> body
-                Thread(target=save_to_disk, args=(article, args.output_dir)).start()
+                # Put it in queue
+                queues[queue_n].put({"article": article, "savedir": args.output_dir})
+                queue_n += 1
+                if queue_n >= len(queues):
+                    queue_n = 0
             else:
                 article += line
+
+            # Don't allow queues to grow too much
+            for queue in queues:
+                if queue.qsize() > 50:
+                    while not queue.empty():
+                        time.sleep(0.01)
+
+            # Print statistics every 10s
+            if time.time() - last_dump_time > 10:
+                last_dump_time = time.time()
+                print('Processed', dumpedArticles.value, '+', skippedArticles.value, '[dumped/skipped] articles (' + "{:.2f}".format((skippedArticles.value+dumpedArticles.value) / totalArticles * 100) + '%), which took', "{:.1f}".format(time.time() - start_time), 'seconds')
+
+    while dumpedArticles.value + skippedArticles.value != totalArticles:
+        time.sleep(5)
+
+    for p in processes:
+        p.terminate()
+        p.join()
+
+    end_time = time.time()
+    print('Dumped', dumpedArticles.value, 'articles (' + "{:.2f}".format(dumpedArticles.value/totalArticles*100) + '%), which took', "{:.1f}".format(end_time - start_time), 'seconds')
