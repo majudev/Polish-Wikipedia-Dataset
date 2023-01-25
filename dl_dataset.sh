@@ -12,6 +12,7 @@ if [ ! -e dataset.xml ]; then
 		echo "Got: $REAL_SHA1SUM"
 		echo "Downloading compressed dataset pl-$DUMP_DATE"
 		wget -c https://dumps.wikimedia.org/plwiki/$DUMP_DATE/plwiki-$DUMP_DATE-pages-articles-multistream.xml.bz2 -O dataset.xml.bz2
+		bzip2 -d dataset.xml.bz2
 	else
 		echo "Dataset already downloaded"
 		bzip2 -d dataset.xml.bz2

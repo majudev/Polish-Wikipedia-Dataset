@@ -2,6 +2,13 @@
 
 Based on [PlainTextWikipedia](https://github.com/daveshap/PlainTextWikipedia)
 
+### What is it?
+
+This is set of scripts meant to create Polish Wikipedia dataset, which
+can be then used in AI training. It has better formatting than Hugging Face
+wikipedia dataset, which can influence quality of text produced by generative
+models, for example GPT2.
+
 ### Requirements
 System-wide:
 - wget
