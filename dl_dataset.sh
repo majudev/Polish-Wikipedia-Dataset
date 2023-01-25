@@ -20,4 +20,4 @@ else
 	echo "Dataset already decompressed. To perform decompression again, delete dataset.xml"
 fi
 
-echo "XML dataset size: `du -h dataset.xml`B"
+echo "XML dataset size: `du -h dataset.xml | awk '{ print $1 }'`B"
