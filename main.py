@@ -143,8 +143,10 @@ if __name__ == '__main__':
                 print('Processed', dumpedArticles.value, '+', skippedArticles.value, '[dumped/skipped] articles (' + "{:.2f}".format((skippedArticles.value+dumpedArticles.value) / totalArticles * 100) + '%), which took', "{:.1f}".format(time.time() - start_time), 'seconds')
 
     while dumpedArticles.value + skippedArticles.value != totalArticles:
+        print('Waiting for all threads to complete their work...')
         time.sleep(5)
 
+    print('Killing worker threads...')
     for p in processes:
         p.terminate()
         p.join()
