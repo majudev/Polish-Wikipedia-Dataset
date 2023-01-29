@@ -38,7 +38,7 @@ def analyze_chunk(text):
             # Obtain title
             title = text.split('<title>')[1].split('</title>')[0]
             title = html2text(title)
-            if ':' in title:
+            if bool(re.search('([^ ]*):[^ ]', title)):
                 # most articles with : in them are not articles we care about
                 return None
         # Obtain ID
