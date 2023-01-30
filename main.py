@@ -16,10 +16,21 @@ def format_article(title, content):
     content = wtp.parse(content).plain_text()  # wiki to plaintext
     #content = re.sub('\<br\>|\<br/\>|\<br /\>', '\n', content) # well, we ignore newlines...
     content = content.strip()
-    content = re.sub(r'\r', r'', content)
+    #content = re.sub(r'\r', '', content)
+    #content = re.sub('\n{3,}', '\n', content)  # replace excess whitespace
+    content = re.sub(r'&nbsp;', ' ', content)  # remove non-breakable spaces
+    content = re.sub(r'\<([^\>]*)\>', '', content, flags=re.S)  # remove html
+    content = re.sub(r'^\* $', '', content, flags=re.MULTILINE) # remove empty list entries
+    content = re.sub(r'^Kategoria\:[^ ](.*)$', '', content, flags=re.MULTILINE) # remove categories at the end of the article
     content = re.sub('\n{3,}', '\n', content)  # replace excess whitespace
-    content = re.sub(r'&nbsp;', r' ', content)  # remove non-breakable spaces
-    content = re.sub(r'\<(.*)\>', r'', content, flags=re.S)  # remove html
+    for i in range(3):
+        content = re.sub(r'\n== ([a-zA-Z0-9ęóąśłżźćńĘÓĄŚŁŻŹĆŃ\-_ ]*) ==(\n== |$|\n$|\n\n== )', r'\2', content, flags=re.S) # remove empty headers
+    content = re.sub(r'\n== Linki zewnętrzne ==\n([^=]*)($|\n== )', r'\2', content, flags=re.S) # remove links
+    content = re.sub(r'\n== Bibliografia ==\n([^=]*)($|\n== )', r'\2', content, flags=re.S) # remove bibliography
+    content = re.sub(r'\n== Zobacz też ==\n([^=]*)($|\n== )', r'\2', content, flags=re.S) # remove see also
+    content = re.sub(r'([^\n])(\n== |\n=== )', r'\1\n\2', content) # ensure at least 1 empty line before each header
+    content = re.sub(r'\n{3,}(== |=== )', r'\n\n\1', content)
+    content = re.sub(r'( ==\n| ===\n)([^\n])', r'\1\n\2', content) # ensure 1 empty line after header
 
     body += content
 
